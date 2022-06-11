@@ -1,28 +1,13 @@
----
-version: "3.4"
+version: "3.5"
+
 services:
   postgres:
-    build:
-      context: ./postgres
+    image: library/postgres:14.1
     ports:
-      - 5432:5432
+      - "5432:5432"
+    command: [ "postgres", "-c", "log_statement=all", "-c", 'max_connections=10000' ]
     environment:
-      - POSTGRES_PASSWORD=password
-  go:
-    build:
-      context: ./go
-    depends_on:
-      - postgres
-    environment:
-      - PG_CONN=postgresql://postgres:password@postgres:5432/postgres?sslmode=disable
-    volumes:
-      - .:/app
-      - gopkg:/go/pkg
-    working_dir: /app
-    command:
-      - go
-      - test
-      - github.com/casbin/casbin-pg-adapter
-
-volumes:
-  gopkg:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=test
+      - POSTGRES_HOST_AUTH_METHOD=trust

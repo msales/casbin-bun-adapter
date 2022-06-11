@@ -1,43 +1,37 @@
-# Go-pg Adapter
+# casbin-bun-adapter
 
-[![Go](https://github.com/casbin/casbin-pg-adapter/actions/workflows/ci.yml/badge.svg)](https://github.com/casbin/casbin-pg-adapter/actions/workflows/ci.yml)
-[![Coverage Status](https://coveralls.io/repos/github/casbin/casbin-pg-adapter/badge.svg?branch=master)](https://coveralls.io/github/casbin/casbin-pg-adapter?branch=master)
+[Bun](https://bun.uptrace.dev) adapter for [Casbin](https://github.com/casbin/casbin).
 
-Go-pg Adapter is the [Go-pg](https://github.com/go-pg/pg) adapter for [Casbin](https://github.com/casbin/casbin). With this library, Casbin can load policy from PostgreSQL or save policy to it.
-
-## Installation
-
-    go get github.com/casbin/casbin-pg-adapter
-
-## Simple Postgres Example
+## Simple Example
 
 ```go
 package main
 
 import (
-	pgadapter "github.com/casbin/casbin-pg-adapter"
+	"database/sql"
+
+	bunadapter "github.com/msales/casbin-bun-adapter"
 	"github.com/casbin/casbin/v2"
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
+	"github.com/uptrace/bun/driver/pgdriver"
 )
 
 func main() {
-	// Initialize a Go-pg adapter and use it in a Casbin enforcer:
-	// The adapter will use the Postgres database named "casbin".
+	// Initialize a database connection (PostgreSQL in this example).
+	dbDSN := "postgresql://username:password@postgres:5432/database?sslmode=disable"
+	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dbDSN)))
+	db := bun.NewDB(sqldb, pgdialect.New())
+	
+	// Initialize an adapter.
+	// The adapter will use the Postgres database named "casbin" and a table named "casbin_rule".
 	// If it doesn't exist, the adapter will create it automatically.
-	a, _ := pgadapter.NewAdapter("postgresql://username:password@postgres:5432/database?sslmode=disable") // Your driver and data source.
-	// Alternatively, you can construct an adapter instance with *pg.Options:
-	// a, _ := pgadapter.NewAdapter(&pg.Options{
-	//     Database: "...",
-	//     User: "...",
-	//     Password: "...",
-	// })
+	a, _ := bunadapter.NewAdapter(db)
 
-	// Or you can use an existing DB "abc" like this:
-	// The adapter will use the table named "casbin_rule".
-	// If it doesn't exist, the adapter will create it automatically.
-
+	// Use the adapter when creating a new instance of an enforcer.
 	e := casbin.NewEnforcer("examples/rbac_model.conf", a)
 
-	// Load the policy from DB.
+	// Load the policy from the DB.
 	e.LoadPolicy()
 
 	// Check the permission.
@@ -47,7 +41,7 @@ func main() {
 	// e.AddPolicy(...)
 	// e.RemovePolicy(...)
 
-	// Save the policy back to DB.
+	// Save the policy back to the DB.
 	e.SavePolicy()
 }
 ```
@@ -61,14 +55,16 @@ package main
 
 import (
 	"github.com/casbin/casbin/v2"
-	pgadapter "github.com/casbin/casbin-pg-adapter"
+	bunadapter "github.com/casbin/casbin-bun-adapter"
+	"github.com/uptrace/bun"
 )
 
 func main() {
-	a, _ := pgadapter.NewAdapter("postgresql://username:password@postgres:5432/database?sslmode=disable")
+	db := bun.NewDB(...)
+	a, _ := bunadapter.NewAdapter(db)
 	e, _ := casbin.NewEnforcer("examples/rbac_model.conf", a)
 
-	e.LoadFilteredPolicy(&pgadapter.Filter{
+	e.LoadFilteredPolicy(&bunadapter.Filter{
 		P: []string{"", "data1"},
 		G: []string{"alice"},
 	})
@@ -76,38 +72,27 @@ func main() {
 }
 ```
 
-## Custom DB Connection
+## Skipping DB setup
 
-You can provide a custom table or database name with `pgadapter.NewAdapterByDB`
+You can skip setting up a database when initializing the adapter.
+Keep in mind that you need to set up the database yourself in this case to make the adapter work.
 
 ```go
 package main
 
 import (
 	"github.com/casbin/casbin/v2"
-	pgadapter "github.com/casbin/casbin-pg-adapter"
-	"github.com/go-pg/pg/v9"
+	bunadapter "github.com/casbin/casbin-bun-adapter"
+	"github.com/uptrace/bun"
 )
 
 func main() {
-	opts, _ := pg.ParseURL("postgresql://pguser:pgpassword@localhost:5432/pgdb?sslmode=disable")
-
-	db := pg.Connect(opts)
-	defer db.Close()
-
-	a, _ := pgadapter.NewAdapterByDB(db, pgadapter.WithTableName("custom_table"))
+	db := bun.NewDB(...)
+	a, _ := bunadapter.NewAdapter(db, bunadapter.SkipDBSetup())
 	e, _ := casbin.NewEnforcer("examples/rbac_model.conf", a)
     ...
 }
 ```
-
-## Run all tests
-
-    docker-compose run --rm go
-
-## Debug tests
-
-    docker-compose run --rm go dlv test github.com/casbin/casbin-pg-adapter
 
 ## Getting Help
 
