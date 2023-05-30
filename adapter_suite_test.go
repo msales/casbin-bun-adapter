@@ -73,15 +73,16 @@ func (suite *AdapterTestSuite) migrateDB() error {
 	return nil
 }
 
-func (suite *AdapterTestSuite) assertPolicy(expected, res [][]string) {
-	suite.T().Helper()
-	suite.Assert().True(util.Array2DEquals(expected, res), "Policy Got: %v, supposed to be %v", res, expected)
-}
-
 func (suite *AdapterTestSuite) assertEnforcerPolicy(res [][]string) {
 	suite.T().Helper()
 	expected := suite.enforcer.GetPolicy()
 	suite.Assert().True(util.Array2DEquals(expected, res), "Policy Got: %v, supposed to be %v", res, expected)
+}
+
+func (suite *AdapterTestSuite) assertEnforcerGroupingPolicy(res [][]string) {
+	suite.T().Helper()
+	expected := suite.enforcer.GetGroupingPolicy()
+	suite.Assert().True(util.Array2DEquals(expected, res), "Grouping Policy Got: %v, supposed to be %v", res, expected)
 }
 
 func (suite *AdapterTestSuite) assertAllowed(rvals ...interface{}) {

@@ -8,10 +8,12 @@ import (
 
 func (suite *AdapterTestSuite) TestSaveLoad() {
 	suite.Assert().False(suite.enforcer.IsFiltered())
-	suite.assertPolicy(
-		[][]string{{"alice", "data1", "read"}, {"bob", "data2", "write"}, {"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"}},
-		suite.enforcer.GetPolicy(),
-	)
+	suite.assertEnforcerPolicy([][]string{
+		{"alice", "data1", "read"},
+		{"bob", "data2", "write"},
+		{"data2_admin", "data2", "read"},
+		{"data2_admin", "data2", "write"},
+	})
 }
 
 func (suite *AdapterTestSuite) TestAutoSave() {
@@ -27,10 +29,12 @@ func (suite *AdapterTestSuite) TestAutoSave() {
 	err = suite.enforcer.LoadPolicy()
 	suite.Require().NoError(err)
 	// This is still the original policy.
-	suite.assertPolicy(
-		[][]string{{"alice", "data1", "read"}, {"bob", "data2", "write"}, {"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"}},
-		suite.enforcer.GetPolicy(),
-	)
+	suite.assertEnforcerPolicy([][]string{
+		{"alice", "data1", "read"},
+		{"bob", "data2", "write"},
+		{"data2_admin", "data2", "read"},
+		{"data2_admin", "data2", "write"},
+	})
 
 	// Now we enable the AutoSave.
 	suite.enforcer.EnableAutoSave(true)
@@ -43,20 +47,26 @@ func (suite *AdapterTestSuite) TestAutoSave() {
 	err = suite.enforcer.LoadPolicy()
 	suite.Require().NoError(err)
 	// The policy has adapter new rule: {"alice", "data1", "write"}.
-	suite.assertPolicy(
-		[][]string{{"alice", "data1", "read"}, {"bob", "data2", "write"}, {"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"}, {"alice", "data1", "write"}},
-		suite.enforcer.GetPolicy(),
-	)
+	suite.assertEnforcerPolicy([][]string{
+		{"alice", "data1", "read"},
+		{"bob", "data2", "write"},
+		{"data2_admin", "data2", "read"},
+		{"data2_admin", "data2", "write"},
+		{"alice", "data1", "write"},
+	})
 
-	// Aditional AddPolicy have no effect
+	// Additional AddPolicy have no effect
 	_, err = suite.enforcer.AddPolicy("alice", "data1", "write")
 	suite.Require().NoError(err)
 	err = suite.enforcer.LoadPolicy()
 	suite.Require().NoError(err)
-	suite.assertPolicy(
-		[][]string{{"alice", "data1", "read"}, {"bob", "data2", "write"}, {"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"}, {"alice", "data1", "write"}},
-		suite.enforcer.GetPolicy(),
-	)
+	suite.assertEnforcerPolicy([][]string{
+		{"alice", "data1", "read"},
+		{"bob", "data2", "write"},
+		{"data2_admin", "data2", "read"},
+		{"data2_admin", "data2", "write"},
+		{"alice", "data1", "write"},
+	})
 
 	_, err = suite.enforcer.AddPolicies([][]string{
 		{"bob", "data2", "read"},
@@ -70,21 +80,18 @@ func (suite *AdapterTestSuite) TestAutoSave() {
 	err = suite.enforcer.LoadPolicy()
 	suite.Require().NoError(err)
 	// The policy has adapter new rule: {"alice", "data1", "write"}.
-	suite.assertPolicy(
-		[][]string{
-			{"alice", "data1", "read"},
-			{"bob", "data2", "write"},
-			{"data2_admin", "data2", "read"},
-			{"data2_admin", "data2", "write"},
-			{"alice", "data1", "write"},
-			{"bob", "data2", "read"},
-			{"alice", "data2", "write"},
-			{"alice", "data2", "read"},
-			{"bob", "data1", "write"},
-			{"bob", "data1", "read"},
-		},
-		suite.enforcer.GetPolicy(),
-	)
+	suite.assertEnforcerPolicy([][]string{
+		{"alice", "data1", "read"},
+		{"bob", "data2", "write"},
+		{"data2_admin", "data2", "read"},
+		{"data2_admin", "data2", "write"},
+		{"alice", "data1", "write"},
+		{"bob", "data2", "read"},
+		{"alice", "data2", "write"},
+		{"alice", "data2", "read"},
+		{"bob", "data1", "write"},
+		{"bob", "data1", "read"},
+	})
 
 	suite.Require().NoError(err)
 }
@@ -93,18 +100,20 @@ func (suite *AdapterTestSuite) TestRemovePolicy() {
 	_, err := suite.enforcer.RemovePolicy("alice", "data1", "read")
 	suite.Require().NoError(err)
 
-	suite.assertPolicy(
-		[][]string{{"bob", "data2", "write"}, {"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"}},
-		suite.enforcer.GetPolicy(),
-	)
+	suite.assertEnforcerPolicy([][]string{
+		{"bob", "data2", "write"},
+		{"data2_admin", "data2", "read"},
+		{"data2_admin", "data2", "write"},
+	})
 
 	err = suite.enforcer.LoadPolicy()
 	suite.Require().NoError(err)
 
-	suite.assertPolicy(
-		[][]string{{"bob", "data2", "write"}, {"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"}},
-		suite.enforcer.GetPolicy(),
-	)
+	suite.assertEnforcerPolicy([][]string{
+		{"bob", "data2", "write"},
+		{"data2_admin", "data2", "read"},
+		{"data2_admin", "data2", "write"},
+	})
 
 	_, err = suite.enforcer.RemovePolicies([][]string{
 		{"data2_admin", "data2", "read"},
@@ -112,65 +121,31 @@ func (suite *AdapterTestSuite) TestRemovePolicy() {
 	})
 	suite.Require().NoError(err)
 
-	suite.assertPolicy(
-		[][]string{{"bob", "data2", "write"}},
-		suite.enforcer.GetPolicy(),
-	)
+	suite.assertEnforcerPolicy([][]string{{"bob", "data2", "write"}})
 }
 
 func (suite *AdapterTestSuite) TestRemoveFilteredPolicy() {
 	_, err := suite.enforcer.RemoveFilteredPolicy(0, "", "data2")
 	suite.Require().NoError(err)
 
-	suite.assertPolicy(
-		[][]string{{"alice", "data1", "read"}},
-		suite.enforcer.GetPolicy(),
-	)
+	suite.assertEnforcerPolicy([][]string{{"alice", "data1", "read"}})
 
 	err = suite.enforcer.LoadPolicy()
 	suite.Require().NoError(err)
 
-	suite.assertPolicy(
-		[][]string{{"alice", "data1", "read"}},
-		suite.enforcer.GetPolicy(),
-	)
+	suite.assertEnforcerPolicy([][]string{{"alice", "data1", "read"}})
 }
 
 func (suite *AdapterTestSuite) TestLoadFilteredPolicy() {
-	e, err := casbin.NewEnforcer("examples/rbac_model.conf", suite.adapter)
-	suite.Require().NoError(err)
-
-	err = e.LoadFilteredPolicy(&bunadapter.Filter{
+	err := suite.enforcer.LoadFilteredPolicy(&bunadapter.Filter{
 		P: []string{"", "", "read"},
 	})
 	suite.Require().NoError(err)
-	suite.Assert().True(e.IsFiltered())
-	suite.assertPolicy(
-		[][]string{{"alice", "data1", "read"}, {"data2_admin", "data2", "read"}},
-		e.GetPolicy(),
-	)
-}
-
-func (suite *AdapterTestSuite) TestLoadFilteredGroupingPolicy() {
-	e, err := casbin.NewEnforcer("examples/rbac_model.conf", suite.adapter)
-	suite.Require().NoError(err)
-
-	err = e.LoadFilteredPolicy(&bunadapter.Filter{
-		G: []string{"bob"},
+	suite.Assert().True(suite.enforcer.IsFiltered())
+	suite.assertEnforcerPolicy([][]string{
+		{"alice", "data1", "read"},
+		{"data2_admin", "data2", "read"},
 	})
-	suite.Require().NoError(err)
-	suite.Assert().True(e.IsFiltered())
-	suite.assertPolicy([][]string{}, e.GetGroupingPolicy())
-
-	e, err = casbin.NewEnforcer("examples/rbac_model.conf", suite.adapter)
-	suite.Require().NoError(err)
-
-	err = e.LoadFilteredPolicy(&bunadapter.Filter{
-		G: []string{"alice"},
-	})
-	suite.Require().NoError(err)
-	suite.Assert().True(e.IsFiltered())
-	suite.assertPolicy([][]string{{"alice", "data2_admin"}}, e.GetGroupingPolicy())
 }
 
 func (suite *AdapterTestSuite) TestLoadFilteredPolicyNilFilter() {
@@ -181,16 +156,18 @@ func (suite *AdapterTestSuite) TestLoadFilteredPolicyNilFilter() {
 	suite.Require().NoError(err)
 
 	suite.Assert().False(e.IsFiltered())
-	suite.assertPolicy(
-		[][]string{{"alice", "data1", "read"}, {"bob", "data2", "write"}, {"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"}},
-		suite.enforcer.GetPolicy(),
-	)
+	suite.assertEnforcerPolicy([][]string{
+		{"alice", "data1", "read"},
+		{"bob", "data2", "write"},
+		{"data2_admin", "data2", "read"},
+		{"data2_admin", "data2", "write"},
+	})
 }
 
 func (suite *AdapterTestSuite) TestSavePolicyClearPreviousData() {
 	suite.enforcer.EnableAutoSave(false)
 	policies := suite.enforcer.GetPolicy()
-	// clone slice to avoid shufling elements
+	// clone slice to avoid shuffling elements
 	policies = append(policies[:0:0], policies...)
 	for _, p := range policies {
 		_, err := suite.enforcer.RemovePolicy(p)
@@ -202,20 +179,14 @@ func (suite *AdapterTestSuite) TestSavePolicyClearPreviousData() {
 		_, err := suite.enforcer.RemoveGroupingPolicy(p)
 		suite.Require().NoError(err)
 	}
-	suite.assertPolicy(
-		[][]string{},
-		suite.enforcer.GetPolicy(),
-	)
+	suite.assertEnforcerPolicy([][]string{})
 
 	err := suite.enforcer.SavePolicy()
 	suite.Require().NoError(err)
 
 	err = suite.enforcer.LoadPolicy()
 	suite.Require().NoError(err)
-	suite.assertPolicy(
-		[][]string{},
-		suite.enforcer.GetPolicy(),
-	)
+	suite.assertEnforcerPolicy([][]string{})
 }
 
 func (suite *AdapterTestSuite) TestUpdatePolicy() {
@@ -234,7 +205,12 @@ func (suite *AdapterTestSuite) TestUpdatePolicy() {
 	err = suite.enforcer.LoadPolicy()
 	suite.Require().NoError(err)
 
-	suite.assertPolicy(suite.enforcer.GetPolicy(), [][]string{{"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"}, {"bob", "data1", "read"}, {"alice", "data2", "write"}})
+	suite.assertEnforcerPolicy([][]string{
+		{"data2_admin", "data2", "read"},
+		{"data2_admin", "data2", "write"},
+		{"bob", "data1", "read"},
+		{"alice", "data2", "write"},
+	})
 }
 
 func (suite *AdapterTestSuite) TestUpdatePolicyWithLoadFilteredPolicy() {
@@ -256,7 +232,12 @@ func (suite *AdapterTestSuite) TestUpdatePolicyWithLoadFilteredPolicy() {
 	err = suite.enforcer.LoadPolicy()
 	suite.Require().NoError(err)
 
-	suite.assertPolicy(suite.enforcer.GetPolicy(), [][]string{{"alice", "data1", "read"}, {"bob", "data2", "write"}, {"bob", "data2", "read"}, {"alice", "data2", "write"}})
+	suite.assertEnforcerPolicy([][]string{
+		{"alice", "data1", "read"},
+		{"bob", "data2", "write"},
+		{"bob", "data2", "read"},
+		{"alice", "data2", "write"},
+	})
 }
 
 func (suite *AdapterTestSuite) TestUpdateFilteredPolicies() {
@@ -278,5 +259,10 @@ func (suite *AdapterTestSuite) TestUpdateFilteredPolicies() {
 	err = suite.enforcer.LoadPolicy()
 	suite.Require().NoError(err)
 
-	suite.assertPolicy(suite.enforcer.GetPolicy(), [][]string{{"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"}, {"alice", "data2", "write"}, {"bob", "data1", "read"}})
+	suite.assertEnforcerPolicy([][]string{
+		{"data2_admin", "data2", "read"},
+		{"data2_admin", "data2", "write"},
+		{"alice", "data2", "write"},
+		{"bob", "data1", "read"},
+	})
 }

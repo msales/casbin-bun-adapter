@@ -1,5 +1,25 @@
 package bunadapter_test
 
+import (
+	bunadapter "github.com/msales/casbin-bun-adapter"
+)
+
+func (suite *AdapterTestSuite) TestLoadFilteredGroupingPolicy() {
+	err := suite.enforcer.LoadFilteredPolicy(&bunadapter.Filter{
+		G: []string{"bob"},
+	})
+	suite.Require().NoError(err)
+	suite.Assert().True(suite.enforcer.IsFiltered())
+	suite.assertEnforcerGroupingPolicy([][]string{})
+
+	err = suite.enforcer.LoadFilteredPolicy(&bunadapter.Filter{
+		G: []string{"alice"},
+	})
+	suite.Require().NoError(err)
+	suite.Assert().True(suite.enforcer.IsFiltered())
+	suite.assertEnforcerGroupingPolicy([][]string{{"alice", "data2_admin"}})
+}
+
 func (suite *AdapterTestSuite) TestAddExistingGroupingPolicy() {
 	suite.False(suite.enforcer.AddGroupingPolicy("alice", "data2_admin"))
 	suite.assertAllowed("alice", "data2", "write")
