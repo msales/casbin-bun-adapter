@@ -11,46 +11,22 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// Filter represents a filter.
+// Filter represents adapter filter.
 type Filter struct {
 	P []string
 	G []string
 }
 
-// Option represents an option for the Adapter.
-type Option func(a *Adapter)
-
-// SkipDBSetup skips the database and table creation step when the adapter starts.
-// If the Casbin rules table does not exist, it will lead to issues when using the adapter.
-func SkipDBSetup() Option {
-	return func(a *Adapter) {
-		a.skipDBSetup = true
-	}
-}
-
 // Adapter represents the github.com/uptrace/bun adapter for policy storage.
 type Adapter struct {
-	db          *bun.DB
-	skipDBSetup bool
-	filtered    bool
+	db       *bun.DB
+	filtered bool
 }
 
 // NewAdapter creates new Adapter by using bun's database connection.
-// The adapter will create a DB named "casbin" and a table from CasbinRule if they don't exist - unless the SkipDBSetup option is used.
-func NewAdapter(db *bun.DB, opts ...Option) (*Adapter, error) {
-	a := &Adapter{db: db}
-
-	for _, opt := range opts {
-		opt(a)
-	}
-
-	if !a.skipDBSetup {
-		if err := a.setupDB(); err != nil {
-			return nil, fmt.Errorf("failed to setup a db: %w", err)
-		}
-	}
-
-	return a, nil
+// Expects DB table to be created in database.
+func NewAdapter(db *bun.DB) (*Adapter, error) {
+	return &Adapter{db: db}, nil
 }
 
 // LoadPolicy loads policy from the database.
@@ -58,7 +34,7 @@ func (a *Adapter) LoadPolicy(model model.Model) error {
 	var rules []*CasbinRule
 
 	if err := a.db.NewSelect().Model(&rules).Scan(context.Background()); err != nil {
-		return fmt.Errorf("failed to load policy from a db: %w", err)
+		return fmt.Errorf("failed to load policy from adapter db: %w", err)
 	}
 
 	for _, r := range rules {
@@ -70,23 +46,23 @@ func (a *Adapter) LoadPolicy(model model.Model) error {
 	return nil
 }
 
-// SavePolicy saves policy to the database.
+// SavePolicy saves policy to the database removing any policies already present.
 func (a *Adapter) SavePolicy(model model.Model) error {
 	rules := a.extractRules(model)
 
 	if err := a.save(true, rules...); err != nil {
-		return fmt.Errorf("failed to save policy to a db: %w", err)
+		return fmt.Errorf("failed to save policy to adapter db: %w", err)
 	}
 
 	return nil
 }
 
-// AddPolicy adds a policy rule to the database.
+// AddPolicy adds adapter policy rule to the database.
 func (a *Adapter) AddPolicy(_ string, ptype string, rule []string) error {
 	r := newCasbinRule(ptype, rule)
 
 	if err := a.save(false, r); err != nil {
-		return fmt.Errorf("failed to add a policy rule: %w", err)
+		return fmt.Errorf("failed to add adapter policy rule: %w", err)
 	}
 
 	return nil
@@ -106,12 +82,12 @@ func (a *Adapter) AddPolicies(_ string, ptype string, rules [][]string) error {
 	return nil
 }
 
-// RemovePolicy removes a policy rule from the database.
+// RemovePolicy removes adapter policy rule from the database.
 func (a *Adapter) RemovePolicy(_ string, ptype string, rule []string) error {
 	r := newCasbinRule(ptype, rule)
 
 	if err := a.delete(r); err != nil {
-		return fmt.Errorf("failed to remove a policy rule: %w", err)
+		return fmt.Errorf("failed to remove adapter policy rule: %w", err)
 	}
 
 	return nil
@@ -163,7 +139,7 @@ func (a *Adapter) RemoveFilteredPolicy(_ string, ptype string, fieldIndex int, f
 	return nil
 }
 
-// LoadFilteredPolicy loads a policy from the database that matches the filter.
+// LoadFilteredPolicy loads adapter policy from the database that matches the filter.
 func (a *Adapter) LoadFilteredPolicy(model model.Model, filter interface{}) error {
 	if filter == nil {
 		return a.LoadPolicy(model)
@@ -225,7 +201,7 @@ func (a *Adapter) IsFiltered() bool {
 	return a.filtered
 }
 
-// UpdatePolicy updates a policy rule from the database.
+// UpdatePolicy updates adapter policy rule from the database.
 // This is part of the Auto-Save feature.
 func (a *Adapter) UpdatePolicy(sec string, ptype string, oldRule, newPolicy []string) error {
 	return a.UpdatePolicies(sec, ptype, [][]string{oldRule}, [][]string{newPolicy})
@@ -324,23 +300,9 @@ func (a *Adapter) UpdateFilteredPolicies(_ string, ptype string, newRules [][]st
 	return oldPolicies, nil
 }
 
-// Close closes a database connection.
+// Close closes adapter database connection.
 func (a *Adapter) Close() error {
 	return a.db.Close()
-}
-
-func (a *Adapter) setupDB() error {
-	_, err := a.db.Exec("CREATE DATABASE casbin")
-	if err != nil {
-		return fmt.Errorf("failed to create casbin database: %w", err)
-	}
-
-	_, err = a.db.NewCreateTable().Model((*CasbinRule)(nil)).IfNotExists().Exec(context.Background())
-	if err != nil {
-		return fmt.Errorf("failed to create casbin rules table: %w", err)
-	}
-
-	return nil
 }
 
 func (a *Adapter) extractRules(model model.Model) []*CasbinRule {
@@ -412,7 +374,7 @@ func (a *Adapter) buildQuery(query *bun.SelectQuery, values []string) (*bun.Sele
 	return query, nil
 }
 
-// CasbinRule represents a rule in Casbin.
+// CasbinRule represents adapter rule in Casbin.
 type CasbinRule struct {
 	bun.BaseModel `bun:"table:casbin_rules,alias:cr"`
 
