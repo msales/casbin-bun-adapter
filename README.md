@@ -72,32 +72,6 @@ func main() {
 }
 ```
 
-## Skipping DB setup
-
-You can skip setting up a database when initializing the adapter.
-Keep in mind that you need to set up the database yourself in this case to make the adapter work.
-
-```go
-package main
-
-import (
-	"github.com/casbin/casbin/v2"
-	bunadapter "github.com/casbin/casbin-bun-adapter"
-	"github.com/uptrace/bun"
-)
-
-func main() {
-	db := bun.NewDB(...)
-	a, _ := bunadapter.NewAdapter(db, bunadapter.SkipDBSetup())
-	e, _ := casbin.NewEnforcer("examples/rbac_model.conf", a)
-    ...
-}
-```
-
-## Getting Help
-
--   [Casbin](https://github.com/casbin/casbin)
-
 ## License
 
 This project is under Apache 2.0 License. See the [LICENSE](LICENSE) file for the full license text.
