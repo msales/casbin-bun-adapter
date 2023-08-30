@@ -2,6 +2,11 @@
 
 [Bun](https://bun.uptrace.dev) adapter for [Casbin](https://github.com/casbin/casbin).
 
+
+## Testing locally
+https://msales.atlassian.net/wiki/spaces/TECH/pages/3061972993/Testing+Same+service+address+in+Github+actions+as+in+local
+
+
 ## Simple Example
 
 ```go
