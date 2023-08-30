@@ -32,7 +32,7 @@ func TestAdapterTestSuite(t *testing.T) {
 }
 
 func (suite *AdapterTestSuite) SetupSuite() {
-	suite.conn = "postgresql://user:pass@localhost:5432/test?sslmode=disable"
+	suite.conn = "postgresql://user:pass@postgres:5432/test?sslmode=disable"
 
 	db := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(suite.conn)))
 	suite.db = bun.NewDB(db, pgdialect.New())
