@@ -4,10 +4,10 @@ on: push
 
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     services:
       db:
-        image: library/postgres:14.1
+        image: library/postgres:15.1
         ports:
           - 5432:5432
         env:
