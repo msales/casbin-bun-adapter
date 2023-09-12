@@ -1,0 +1,40 @@
+name: Test
+
+on: push
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: library/postgres:15.1
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: pass
+          POSTGRES_DB: test
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
+      - name: Checkout actions repository
+        uses: actions/checkout@v2
+        with:
+          repository: msales/github-actions
+          ref: master
+          token: ${{ secrets.GH_TOKEN }}
+          path: .github/actions/external
+
+      - name: Run the tests
+        id: test
+        uses: ./.github/actions/external/go-test
+        with:
+          org_token: ${{ secrets.GH_TOKEN }}
+          staticcheck: true
+          test: true
+          vet: true
+          staticcheck_version: latest
+          staticcheck_ignore: "ST1000,SA1019,ST1003"
+          race: true
+          parallel: true
