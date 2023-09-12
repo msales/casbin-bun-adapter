@@ -65,7 +65,7 @@ func (suite *AdapterTestSuite) prePopulateUsingPoliciesFromFile() {
 }
 
 func (suite *AdapterTestSuite) migrateDB() error {
-	err := suite.db.QueryRow("CREATE SCHEME casbin").Err()
+	err := suite.db.QueryRow("CREATE SCHEMA casbin").Err()
 	if err != nil {
 		return fmt.Errorf("failed to create casbin scheme: %w", err)
 	}
