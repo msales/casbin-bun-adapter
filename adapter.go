@@ -376,7 +376,7 @@ func (a *Adapter) buildQuery(query *bun.SelectQuery, values []string) (*bun.Sele
 
 // CasbinRule represents adapter rule in Casbin.
 type CasbinRule struct {
-	bun.BaseModel `bun:"table:casbin_rules,alias:cr"`
+	bun.BaseModel `bun:"table:casbin.casbin_rules,alias:cr"`
 
 	ID    string `bun:",pk"`
 	Ptype string
