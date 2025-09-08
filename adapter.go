@@ -2,12 +2,14 @@ package bunadapter
 
 import (
 	"context"
+	"crypto/md5"
 	"fmt"
+	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/casbin/casbin/v2/model"
 	"github.com/casbin/casbin/v2/persist"
-	"github.com/mmcloughlin/meow"
 	"github.com/uptrace/bun"
 )
 
@@ -344,9 +346,27 @@ func (a *Adapter) save(truncate bool, lines ...*CasbinRule) error {
 }
 
 func (a *Adapter) delete(lines ...*CasbinRule) error {
-	_, err := a.db.NewDelete().Model(&lines).WherePK().Exec(context.Background())
+	if len(lines) == 0 {
+		return nil
+	}
 
-	return err
+	// Batch delete by building a combined WHERE clause
+	queries := make([]string, 0, len(lines))
+	args := make([]interface{}, 0, len(lines)*7)
+	for _, line := range lines {
+		whereStr, whereArgs := line.queryString()
+		queries = append(queries, "("+whereStr+")")
+		args = append(args, whereArgs...)
+	}
+	_, err := a.db.NewDelete().
+		Model((*CasbinRule)(nil)).
+		Where(strings.Join(queries, " OR "), args...).
+		Exec(context.Background())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *Adapter) buildQuery(query *bun.SelectQuery, values []string) (*bun.SelectQuery, error) {
@@ -411,7 +431,11 @@ func newCasbinRule(ptype string, rule []string) *CasbinRule {
 		line.V5 = rule[5]
 	}
 
-	line.ID = line.policyID(ptype, rule)
+	// The ID is just a random unique string, not derived from the rule content.
+	// This ID seems to be completely not needed. But we keep it for compatibility with existing DB schema.
+	// Having this ID may cause rules duplication. In fact PK should be across all fields and ID column should be removed.
+	// It could be removed in future versions.
+	line.ID = line.randomID()
 
 	return line
 }
@@ -455,9 +479,11 @@ func (r *CasbinRule) String() string {
 	return sb.String()
 }
 
-func (r *CasbinRule) policyID(ptype string, rule []string) string {
-	data := strings.Join(append([]string{ptype}, rule...), ",")
-	sum := meow.Checksum(0, []byte(data))
+func (r *CasbinRule) randomID() string {
+	// sum must be a md5 of a random text
+	var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
+	txt := fmt.Sprintf("%d-%d", time.Now().UnixNano(), rnd.Int63())
+	sum := md5.Sum([]byte(txt))
 
 	return fmt.Sprintf("%x", sum)
 }
