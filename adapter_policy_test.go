@@ -8,6 +8,10 @@ import (
 
 func (suite *AdapterTestSuite) TestSaveLoad() {
 	suite.Assert().False(suite.enforcer.IsFiltered())
+
+	// reloading the policy to make sure the enforcer is not using any cached one
+	suite.Require().NoError(suite.enforcer.LoadPolicy())
+
 	suite.assertEnforcerPolicy([][]string{
 		{"alice", "data1", "read"},
 		{"bob", "data2", "write"},
@@ -100,6 +104,9 @@ func (suite *AdapterTestSuite) TestRemovePolicy() {
 	_, err := suite.enforcer.RemovePolicy("alice", "data1", "read")
 	suite.Require().NoError(err)
 
+	// reloading the policy to make sure the enforcer is not using any cached one
+	suite.Require().NoError(suite.enforcer.LoadPolicy())
+
 	suite.assertEnforcerPolicy([][]string{
 		{"bob", "data2", "write"},
 		{"data2_admin", "data2", "read"},
@@ -120,6 +127,9 @@ func (suite *AdapterTestSuite) TestRemovePolicy() {
 		{"data2_admin", "data2", "write"},
 	})
 	suite.Require().NoError(err)
+
+	// reloading the policy to make sure the enforcer is not using any cached one
+	suite.Require().NoError(suite.enforcer.LoadPolicy())
 
 	suite.assertEnforcerPolicy([][]string{{"bob", "data2", "write"}})
 }

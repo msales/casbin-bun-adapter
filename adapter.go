@@ -13,6 +13,12 @@ import (
 	"github.com/uptrace/bun"
 )
 
+var rnd *rand.Rand
+
+func init() {
+	rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
+}
+
 // Filter represents adapter filter.
 type Filter struct {
 	P []string
@@ -228,8 +234,10 @@ func (a *Adapter) UpdatePolicies(_ string, ptype string, oldRules, newRules [][]
 	}
 
 	for i, line := range oldLines {
-		str, args := line.queryString()
-		_, err = tx.NewUpdate().Model(newLines[i]).Where(str, args...).Exec(context.Background())
+		q := tx.NewUpdate().Model(newLines[i])
+		qb := q.QueryBuilder()
+		line.QueryWhereGroup(qb)
+		_, err = q.Exec(context.Background())
 		if err != nil {
 			tx.Rollback()
 
@@ -274,9 +282,10 @@ func (a *Adapter) UpdateFilteredPolicies(_ string, ptype string, newRules [][]st
 
 	err := a.db.RunInTx(context.Background(), nil, func(ctx context.Context, tx bun.Tx) error {
 		for i := range newP {
-			str, args := line.queryString()
-			result, err := tx.NewDelete().Model(&oldP).Where(str, args...).Returning("*").Exec(ctx)
-			fmt.Println(result)
+			q := tx.NewDelete().Model(&oldP)
+			qb := q.QueryBuilder()
+			line.QueryWhereGroup(qb)
+			_, err := q.Returning("*").Exec(ctx)
 			if err != nil {
 				return err
 			}
@@ -350,18 +359,16 @@ func (a *Adapter) delete(lines ...*CasbinRule) error {
 		return nil
 	}
 
-	// Batch delete by building a combined WHERE clause
-	queries := make([]string, 0, len(lines))
-	args := make([]interface{}, 0, len(lines)*7)
-	for _, line := range lines {
-		whereStr, whereArgs := line.queryString()
-		queries = append(queries, "("+whereStr+")")
-		args = append(args, whereArgs...)
-	}
-	_, err := a.db.NewDelete().
-		Model((*CasbinRule)(nil)).
-		Where(strings.Join(queries, " OR "), args...).
-		Exec(context.Background())
+	delQuery := a.db.NewDelete().Model((*CasbinRule)(nil))
+	delQuery.QueryBuilder().WhereGroup("AND", func(q bun.QueryBuilder) bun.QueryBuilder {
+		return q.WhereGroup("OR", func(q bun.QueryBuilder) bun.QueryBuilder {
+			for _, line := range lines {
+				line.QueryWhereGroup(q)
+			}
+			return q
+		})
+	})
+	_, err := delQuery.Exec(context.Background())
 	if err != nil {
 		return err
 	}
@@ -481,43 +488,37 @@ func (r *CasbinRule) String() string {
 
 func (r *CasbinRule) randomID() string {
 	// sum must be a md5 of a random text
-	var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 	txt := fmt.Sprintf("%d-%d", time.Now().UnixNano(), rnd.Int63())
 	sum := md5.Sum([]byte(txt))
 
 	return fmt.Sprintf("%x", sum)
 }
 
-func (r *CasbinRule) queryString() (string, []interface{}) {
-	queryArgs := []interface{}{r.Ptype}
-
-	queryStr := "ptype = ?"
-	if r.V0 != "" {
-		queryStr += " and v0 = ?"
-		queryArgs = append(queryArgs, r.V0)
-	}
-	if r.V1 != "" {
-		queryStr += " and v1 = ?"
-		queryArgs = append(queryArgs, r.V1)
-	}
-	if r.V2 != "" {
-		queryStr += " and v2 = ?"
-		queryArgs = append(queryArgs, r.V2)
-	}
-	if r.V3 != "" {
-		queryStr += " and v3 = ?"
-		queryArgs = append(queryArgs, r.V3)
-	}
-	if r.V4 != "" {
-		queryStr += " and v4 = ?"
-		queryArgs = append(queryArgs, r.V4)
-	}
-	if r.V5 != "" {
-		queryStr += " and v5 = ?"
-		queryArgs = append(queryArgs, r.V5)
-	}
-
-	return queryStr, queryArgs
+// QueryWhereGroup extends query builder with another OR group. Group contains all non-empty fields of the CasbinRule.
+func (r *CasbinRule) QueryWhereGroup(q bun.QueryBuilder) bun.QueryBuilder {
+	q.WhereGroup("OR", func(q bun.QueryBuilder) bun.QueryBuilder {
+		q = q.Where("ptype = ?", r.Ptype)
+		if r.V0 != "" {
+			q = q.Where("v0 = ?", r.V0)
+		}
+		if r.V1 != "" {
+			q = q.Where("v1 = ?", r.V1)
+		}
+		if r.V2 != "" {
+			q = q.Where("v2 = ?", r.V2)
+		}
+		if r.V3 != "" {
+			q = q.Where("v3 = ?", r.V3)
+		}
+		if r.V4 != "" {
+			q = q.Where("v4 = ?", r.V4)
+		}
+		if r.V5 != "" {
+			q = q.Where("v5 = ?", r.V5)
+		}
+		return q
+	})
+	return q
 }
 
 func (r *CasbinRule) toStringPolicy() []string {

@@ -22,6 +22,12 @@ func (suite *AdapterTestSuite) TestLoadFilteredGroupingPolicy() {
 
 func (suite *AdapterTestSuite) TestAddExistingGroupingPolicy() {
 	suite.False(suite.enforcer.AddGroupingPolicy("alice", "data2_admin"))
+	// reloading the policy to make sure the enforcer is not using any cached one
+	suite.Require().NoError(suite.enforcer.LoadPolicy())
+
+	// reloading the policy to make sure the enforcer is not using any cached one
+	suite.Require().NoError(suite.enforcer.LoadPolicy())
+
 	suite.assertAllowed("alice", "data2", "write")
 	suite.assertDisallowed("alice", "data1", "write")
 	suite.assertEnforcerPolicy([][]string{
@@ -36,6 +42,10 @@ func (suite *AdapterTestSuite) TestAddNotExistingGroupingPolicy() {
 	suite.True(suite.enforcer.AddGroupingPolicy("alice", "data1_admin"))
 	suite.True(suite.enforcer.AddPolicy("data1_admin", "data1", "read"))
 	suite.True(suite.enforcer.AddPolicy("data1_admin", "data1", "write"))
+
+	// reloading the policy to make sure the enforcer is not using any cached one
+	suite.Require().NoError(suite.enforcer.LoadPolicy())
+
 	suite.assertAllowed("alice", "data2", "write")
 	suite.assertAllowed("alice", "data1", "write")
 	suite.assertEnforcerPolicy([][]string{
@@ -55,6 +65,9 @@ func (suite *AdapterTestSuite) TestAddNewHierarchicalGroupingPolicy() {
 
 	suite.True(suite.enforcer.AddGroupingPolicy("admin", "data2_admin"))
 	suite.True(suite.enforcer.AddGroupingPolicy("joe", "admin"))
+
+	// reloading the policy to make sure the enforcer is not using any cached one
+	suite.Require().NoError(suite.enforcer.LoadPolicy())
 
 	suite.assertAllowed("joe", "data1", "read")
 	suite.assertAllowed("joe", "data1", "write")
